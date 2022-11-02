@@ -1,0 +1,8 @@
+!.gitignore
+!.dockerignore
+.DS_Store
+**/logs
+**/misc/commands.txt
+**/misc/gke-dev-sa
+**/node_modules
+**/package-lock.json

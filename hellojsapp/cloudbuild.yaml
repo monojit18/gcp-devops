@@ -1,0 +1,15 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'asia-southeast1-docker.pkg.dev/${PROJECT_ID}/cloud-native-repo/hellojsapp:v1.0', '.']
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'asia-southeast1-docker.pkg.dev/${PROJECT_ID}/cloud-native-repo/hellojsapp:v1.0']
+- name: "gcr.io/cloud-builders/gke-deploy"
+  args:
+  - run
+  - --filename=${_K8S_RESOURCE}
+  - --location=${_REGION}
+  - --cluster=${_CLUSTER_NAME}
+substitutions:
+  _K8S_RESOURCE: ''
+  _CLUSTER_NAME: ''
+  _REGION: ''

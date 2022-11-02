@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:  
+  labels:
+    app: hellojsapp    
+  name: hellojsapp
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 7071
+  selector:
+    app: hellojsapp
+  type: LoadBalancer

@@ -1,0 +1,33 @@
+deployment:
+  name: hellojsapp-deploy  
+  labels:
+    app: hellojsapp-deploy
+    version: v1
+  selectorLabels:
+    app: hellojsapp-pod
+    version: v1
+  replicas: 1
+  strategyType: RollingUpdate
+  maxSurge: 1
+  maxUnavailable: 0  
+  containers:
+  - name: hellojsapp-app
+    image: asia-southeast1-docker.pkg.dev/cloud-native-project-spoke/cloud-native-repo/hellojsapp:v1.0.2
+    imagePullPolicy: IfNotPresent
+    memoryRequest: "250Mi"
+    cpuRequest: "100m"
+    memoryLimit: "500Mi"
+    cpuLimit: "200m"
+    containerPorts: [7071]
+service:
+  name: hellojsapp-svc
+  selector:
+    app: hellojsapp-pod
+  type: LoadBalancer
+  ports:
+  - protocol: TCP
+    name: http
+    port: 80
+    targetPort: 7071  
+    
+    

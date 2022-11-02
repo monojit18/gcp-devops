@@ -1,0 +1,21 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'asia-southeast1-docker.pkg.dev/${PROJECT_ID}/cloud-native-repo/hellojsapp:${_APP_VERSION}', '.']
+  id: 'build'
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'asia-southeast1-docker.pkg.dev/${PROJECT_ID}/cloud-native-repo/hellojsapp:${_APP_VERSION}']
+  id: 'push'
+- name: "gcr.io/$PROJECT_ID/helm:${_HELM_VERSION}"
+  args: ['upgrade', '--install', 'hellojsapp', './helms/hellojsapp-chart/', '-f' , './helms/hellojsapp-chart/values-hellojsapp.yaml']
+  id: 'install'
+  env:
+  - 'CLOUDSDK_CONTAINER_CLUSTER=${_CLUSTER_NAME}'
+  - 'CLOUDSDK_COMPUTE_ZONE=${_REGION}'  
+tags: ['cloud-builders-community']
+substitutions:  
+  _CLUSTER_NAME: ''
+  _REGION: ''
+  _HELM_VERSION: 3.9.1
+  _APP_VERSION: 'v1.0.2'
+options:
+    substitution_option: 'ALLOW_LOOSE'

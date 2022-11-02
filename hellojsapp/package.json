@@ -1,0 +1,17 @@
+{
+    "name": "hello_js_app",
+    "description": "Simple Hello World Node.js sample",
+    "version": "1.0.1",
+    "private": true,
+    "license": "MIT",
+    "author": "Monojit Datta",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "preinstall": "mkdir -p logs",
+        "install": "npm install --unsafe-perm --save-dev express",
+        "start": "node server.js 1> logs/server.log 2>&1"
+    },
+    "engines": {
+        "node": ">=16.0.0"
+    }
+}

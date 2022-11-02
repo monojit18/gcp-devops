@@ -1,0 +1,80 @@
+PROJECT=""
+DEFAULT_SA=""
+GSA=""
+
+gcloud services enable sourcerepo.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+
+#helm uninstall hellojsapp
+helm install hellojsapp ./hellojsapp-chart/ -f ./hellojsapp-chart/values-hellojsapp.yaml --set deployment.containers[0].env[0].value="abcd1234" --dry-run --debug
+#helm upgrade hellojsapp ./hellojsapp-chart/ -f ./hellojsapp-chart/values-hellojsapp.yaml --set deployment.containers[0].env[0].value="abcd1234" --dry-run --debug
+
+gcloud source repos create hellojsapp
+gcloud source repos clone hellojsapp
+git push <repo-url> main
+gcloud builds submit --config cloudbuild.yaml
+
+gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$DEFAULT_SA --role=roles/container.developer
+gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:$DEFAULT_SA --role=roles/secretmanager.secretAccessor
+
+gcloud builds submit --config cloudbuild.yaml \
+--substitutions=_CLUSTER_NAME="gke-public-cluster",_REGION="asia-southeast1",_K8S_RESOURCE="./deploy"
+
+gcloud builds submit --config cloudbuild-helm.yaml \
+--substitutions=_CLUSTER_NAME="gke-public-cluster",_REGION="asia-southeast1"
+
+gcloud artifacts repositories list
+
+#Secret Manager
+=================
+gcloud services enable secretmanager.googleapis.com
+gcloud secrets create hellojsapp-key1 --replication-policy="automatic"
+#gcloud secrets delete hellojsapp-secret
+echo -n "testval1" | gcloud secrets versions add hellojsapp-key1 --data-file=-
+gcloud secrets versions access 1 --secret=hellojsapp-key1
+
+#RBAC
+======
+k create sa test-sa
+kubectl annotate serviceaccount test-sa --namespace default \
+    iam.gke.io/gcp-service-account=$GSA
+
+k create role foo --verb=get,list,watch --resource=pods
+#k delete role foo
+
+k create rolebinding foo-binding --role=foo --serviceaccount=default:test-sa
+#k delete rolebinding foo-binding
+
+k create rolebinding foo-binding --role=foo --user=$GSA
+k create rolebinding foo-binding --role=foo --group=gke-cluster-developers@<dns-name>
+k create rolebinding foo-binding --role=foo --group=gke-cluster-admins@<dns-name>
+k create rolebinding foo-binding --role=foo --user=gke-dev-sa@$PROJECT.iam.gserviceaccount.com
+
+gcloud iam service-accounts keys create "./gke-dev-sa" --iam-account=gke-dev-sa@$PROJECT.iam.gserviceaccount.com
+
+k create clusterrolebinding gke-cluster-admin --clusterrole=cluster-admin --group=gke-cluster-admins@<dns-name>
+
+gcloud container clusters get-credentials gke-public-cluster --region=asia-southeast1
+gcloud container clusters update gke-public-cluster --region=asia-southeast1 --security-group="gke-security-groups@<dns-name>"
+
+#CSI
+=====
+helm repo add secrets-store-csi-driver https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
+helm install csi-secrets-store secrets-store-csi-driver/secrets-store-csi-driver --namespace kube-system \
+--set syncSecret.enabled=true --set enableSecretRotation=true
+#helm uninstall csi-secrets-store
+
+helm repo update
+helm upgrade --install secrets-store-csi-driver-provider-gcp charts/secrets-store-csi-driver-provider-gcp
+
+gcloud iam service-accounts create gke-workload
+gcloud iam service-accounts add-iam-policy-binding \
+    --role roles/iam.workloadIdentityUser \
+    --member "serviceAccount:$PROJECT.svc.id.goog[default/mypodserviceaccount]" \
+    gke-workload@$PROJECT.iam.gserviceaccount.com
+
+gcloud secrets add-iam-policy-binding hellojsapp-key1 \
+    --member=serviceAccount:gke-workload@$PROJECT.iam.gserviceaccount.com \
+    --role=roles/secretmanager.secretAccessor
+
+kubectl get secretproviderclasspodstatus nginx-secrets-store-inline-crd-default-azure-spc -o yaml
